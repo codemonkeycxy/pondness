@@ -87,7 +87,7 @@ def pprint_scorecards(score_card_map):
             score_card.opponent_pval,
             score_card.my_pval)
         )
-    return '\n\n'.join(arr)
+    return '\n'.join(arr)
 
 
 def send_img(msg, user_name):
@@ -100,7 +100,13 @@ def get_user_human_name(user=None, user_id_name=None):
     if user:
         return user['RemarkName'] or user['NickName'] or user['Name']
     elif user_id_name:
-        return get_user_human_name(user=itchat.search_friends(userName=user_id_name))
+        user = itchat.search_friends(userName=user_id_name)
+        if user:
+            return get_user_human_name(user)
+        else:
+            # return back user id name in case no corresponding user can be found
+            # this is at least happening for file helper
+            return user_id_name
     else:
         return 'user not found'
 
