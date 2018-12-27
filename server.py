@@ -49,9 +49,9 @@ def handle_incoming_msg(msg, from_user_name):
 def check_p_balance(score_card):
     log('my p-value: {}; opponent p-value: {}'.format(score_card.my_pval, score_card.opponent_pval))
     if score_card.my_pval < score_card.opponent_pval - 10:
-        log(u'If you are interested, you might want to display it more openly')
+        notify_me(u'If you are interested, you might want to display it more openly')
     elif score_card.my_pval - 10 > score_card.opponent_pval:
-        log(u'Hey slow down a little bit, you want to give him/her some time to catch up')
+        notify_me(u'Hey slow down a little bit, you want to give him/her some time to catch up')
 
 # --------------------------------------------- Helper Functions ---------------------------------------------------
 
@@ -65,6 +65,11 @@ def log(msg):
         print(u'{} {}'.format(now(), msg))
     except Exception as e:
         print(str(e))
+
+
+def notify_me(msg):
+    log(msg)
+    itchat.send_msg(msg, 'filehelper')
 
 
 def send_img(msg, user_name):
