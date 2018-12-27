@@ -24,31 +24,26 @@ def text_reply(msg):
     to_user_name = msg['ToUserName']
     from_user_name = msg['FromUserName']
 
-    to_user = itchat.search_friends(to_user_name)
-    from_user = itchat.search_friends(from_user_name)
-
     if is_my_outgoing_msg(msg):
-        handle_outgoing_msg(msg, to_user)
+        handle_outgoing_msg(msg, to_user_name)
     else:  # this is an incoming message from my friend
-        handle_incoming_msg(msg, from_user)
+        handle_incoming_msg(msg, from_user_name)
 
 
-def handle_outgoing_msg(msg, to_user):
-    user_name = get_user_display_name(to_user)
-    log(u'I sent a message {} to {}'.format(msg['Text'], user_name))
+def handle_outgoing_msg(msg, to_user_name):
+    log(u'I sent a message {} to {}'.format(msg['Text'], to_user_name))
     # todo: probably safer to use user id here
     # I just sent a msg, that shows my interest, therefore bump my pondness value
-    conversation_list[user_name].my_pval += 1
-    check_p_balance(conversation_list[user_name])
+    conversation_list[to_user_name].my_pval += 1
+    check_p_balance(conversation_list[to_user_name])
 
 
-def handle_incoming_msg(msg, from_user):
-    user_name = get_user_display_name(from_user)
-    log(u'I received a message {} from {}'.format(msg['Text'], user_name))
+def handle_incoming_msg(msg, from_user_name):
+    log(u'I received a message {} from {}'.format(msg['Text'], from_user_name))
     # todo: probably safer to use user id here
     # Some sent me a msg, that shows their interest, therefore bump their pondness value
-    conversation_list[user_name].opponent_pval += 1
-    check_p_balance(conversation_list[user_name])
+    conversation_list[from_user_name].opponent_pval += 1
+    check_p_balance(conversation_list[from_user_name])
 
 
 def check_p_balance(score_card):
