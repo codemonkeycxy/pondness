@@ -10,6 +10,13 @@ import datetime
 from itchat.content import *
 from collections import defaultdict
 
+# stupid python encode workarounds
+# https://stackoverflow.com/questions/21129020/how-to-fix-unicodedecodeerror-ascii-codec-cant-decode-byte
+import sys
+reload(sys)
+sys.setdefaultencoding('utf8')
+###########
+
 # todo: document dependencies with requirement file: ujson, itchat
 
 
@@ -36,12 +43,13 @@ class ScoreCard(object):
 
 
 FILE_HELPER = 'filehelper'
-scorecard_map = defaultdict(ScoreCard)
 
 # --------------------------------------------- Handle Friend Chat ---------------------------------------------------
 
+# todo: limit to text for now because pic somehow triggers infinite loop in persist function
 
-@itchat.msg_register([TEXT, PICTURE, FRIENDS, CARD, MAP, SHARING, RECORDING, ATTACHMENT, VIDEO], isFriendChat=True)
+
+@itchat.msg_register([TEXT], isFriendChat=True)
 def text_reply(msg):
     """ handle robot switch and friends messages """
     to_user_id_name = msg['ToUserName']
@@ -54,23 +62,44 @@ def text_reply(msg):
 
 
 def handle_outgoing_msg(msg, to_user_id_name):
-    log(u'I sent a message {} to {}'.format(msg['Text'], get_user_human_name(user_id_name=to_user_id_name)))
-    persist(msg, to_user_id_name)
+    user_human_name = get_user_human_name(user_id_name=to_user_id_name)
+    log(u'I sent a message {} to {}'.format(msg['Text'], user_human_name))
 
     # handle p value inquiries
     if to_user_id_name == FILE_HELPER and 'pondness' in msg['Text'].lower():
+        scorecard_map = collect_scorecards()
         return notify_me(pprint_scorecards(scorecard_map))
 
-    # I just sent a msg, that shows my interest, therefore bump my pondness value
-    scorecard_map[to_user_id_name].my_pval += 1
+    persist(msg, user_human_name)
 
 
 def handle_incoming_msg(msg, from_user_id_name):
-    log(u'I received a message {} from {}'.format(msg['Text'], get_user_human_name(user_id_name=from_user_id_name)))
-    persist(msg, from_user_id_name)
+    user_human_name = get_user_human_name(user_id_name=from_user_id_name)
+    log(u'I received a message {} from {}'.format(msg['Text'], user_human_name))
+    persist(msg, user_human_name)
 
-    # Some sent me a msg, that shows their interest, therefore bump their pondness value
-    scorecard_map[from_user_id_name].opponent_pval += 1
+
+def collect_scorecards():
+    log_folder_path = get_log_folder_path()
+    log_files = [f for f in os.listdir(log_folder_path) if f.endswith('.csv')]
+    scorecard_map = defaultdict(ScoreCard)
+
+    for log_file in log_files:
+        user_name = log_file.replace('.csv', '')
+        abs_file_path = os.path.join(log_folder_path, log_file)
+
+        with open(abs_file_path, 'rt') as f:
+            read = csv.reader(f)
+            for row in read:
+                msg = ujson.loads(row[0])
+                if is_my_outgoing_msg(msg):
+                    # I sent a msg, that shows my interest, therefore bump my pondness value
+                    scorecard_map[user_name].my_pval += 1
+                else:  # this is an incoming message from my friend
+                    # Some sent me a msg, that shows their interest, therefore bump their pondness value
+                    scorecard_map[user_name].opponent_pval += 1
+
+    return scorecard_map
 
 
 # --------------------------------------------- Helper Functions ---------------------------------------------------
@@ -87,14 +116,18 @@ def log(msg):
         print(str(e))
 
 
-def persist(msg, who_am_i_talking_to):
+def get_log_folder_path():
     script_dir = os.path.dirname(__file__)
-    rel_path = 'log/{}.csv'.format(who_am_i_talking_to)
-    abs_file_path = os.path.join(script_dir, rel_path)
+    return os.path.join(script_dir, 'log')
+
+
+def persist(msg, who_am_i_talking_to):
+    file_name = u'{}.csv'.format(who_am_i_talking_to)
+    abs_file_path = os.path.join(get_log_folder_path(), file_name)
 
     with open(abs_file_path, 'a') as f:
         writer = csv.writer(f)
-        writer.writerow([ujson.dumps(msg, ensure_ascii=False)])
+        writer.writerow([ujson.dumps(dict(msg), ensure_ascii=False)])
 
 
 def notify_me(msg):
@@ -102,13 +135,13 @@ def notify_me(msg):
     itchat.send_msg(msg, FILE_HELPER)
 
 
-def pprint_scorecards(score_card_map):
+def pprint_scorecards(scorecard_map):
     arr = []
-    for user_id_name, scorecard in score_card_map.items():
+    for user_name, scorecard in scorecard_map.items():
         arr.append(u'me {my_ppct}% VS {oppo_ppct}% {oppo_name}'.format(
             my_ppct=scorecard.my_ppct,
             oppo_ppct=scorecard.opponent_ppct,
-            oppo_name=get_user_human_name(user_id_name=user_id_name),
+            oppo_name=user_name,
         ))
     return '\n'.join(arr)
 
@@ -135,10 +168,9 @@ def get_user_human_name(user=None, user_id_name=None):
 
 
 def is_my_outgoing_msg(msg):
-    return msg['FromUserName'] == MY_USER_ID_NAME
+    return msg['ToUserName'] == msg['User']['UserName']
 
 
 if __name__ == '__main__':
     itchat.auto_login()
-    MY_USER_ID_NAME = itchat.get_friends(update=True)[0]["UserName"]
     itchat.run()
