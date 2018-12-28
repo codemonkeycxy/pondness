@@ -1,10 +1,16 @@
 # coding=utf8
 
 from __future__ import print_function, division
+
+import os
+import csv
+import ujson
 import itchat
 import datetime
 from itchat.content import *
 from collections import defaultdict
+
+# todo: document dependencies with requirement file: ujson, itchat
 
 
 class ScoreCard(object):
@@ -49,9 +55,10 @@ def text_reply(msg):
 
 def handle_outgoing_msg(msg, to_user_id_name):
     log(u'I sent a message {} to {}'.format(msg['Text'], get_user_human_name(user_id_name=to_user_id_name)))
+    persist(msg, to_user_id_name)
 
     # handle p value inquiries
-    if to_user_id_name == FILE_HELPER and 'pondness' in msg['Content'].lower():
+    if to_user_id_name == FILE_HELPER and 'pondness' in msg['Text'].lower():
         return notify_me(pprint_scorecards(scorecard_map))
 
     # I just sent a msg, that shows my interest, therefore bump my pondness value
@@ -60,6 +67,8 @@ def handle_outgoing_msg(msg, to_user_id_name):
 
 def handle_incoming_msg(msg, from_user_id_name):
     log(u'I received a message {} from {}'.format(msg['Text'], get_user_human_name(user_id_name=from_user_id_name)))
+    persist(msg, from_user_id_name)
+
     # Some sent me a msg, that shows their interest, therefore bump their pondness value
     scorecard_map[from_user_id_name].opponent_pval += 1
 
@@ -76,6 +85,16 @@ def log(msg):
         print(u'{} {}'.format(now(), msg))
     except Exception as e:
         print(str(e))
+
+
+def persist(msg, who_am_i_talking_to):
+    script_dir = os.path.dirname(__file__)
+    rel_path = 'log/{}.csv'.format(who_am_i_talking_to)
+    abs_file_path = os.path.join(script_dir, rel_path)
+
+    with open(abs_file_path, 'a') as f:
+        writer = csv.writer(f)
+        writer.writerow([ujson.dumps(msg, ensure_ascii=False)])
 
 
 def notify_me(msg):
@@ -116,13 +135,10 @@ def get_user_human_name(user=None, user_id_name=None):
 
 
 def is_my_outgoing_msg(msg):
-    return msg['FromUserName'] == my_user_name()
-
-
-def my_user_name():
-    return itchat.get_friends(update=True)[0]["UserName"]
+    return msg['FromUserName'] == MY_USER_ID_NAME
 
 
 if __name__ == '__main__':
     itchat.auto_login()
+    MY_USER_ID_NAME = itchat.get_friends(update=True)[0]["UserName"]
     itchat.run()
