@@ -1,6 +1,6 @@
 # coding=utf8
 
-from __future__ import print_function
+from __future__ import print_function, division
 import itchat
 import datetime
 from itchat.content import *
@@ -12,8 +12,21 @@ class ScoreCard(object):
         self.my_pval = 0
         self.opponent_pval = 0
 
+    @property
+    def my_ppct(self):
+        return round(self.my_pval / (self.my_pval + self.opponent_pval) * 100, 2)
+
+    @property
+    def opponent_ppct(self):
+        return round(self.opponent_pval / (self.my_pval + self.opponent_pval) * 100, 2)
+
     def __str__(self):
-        return u'my p-value: {}; his/her p-value: {}'.format(self.my_pval, self.opponent_pval)
+        return u'me {my_ppct}({my_pval}) VS {oppo_ppct}({oppo_pval}) opponent'.format(
+            my_ppct=self.my_ppct,
+            my_pval=self.my_pval,
+            oppo_ppct=self.opponent_ppct,
+            oppo_pval=self.opponent_pval
+        )
 
 
 FILE_HELPER = 'filehelper'
@@ -43,22 +56,13 @@ def handle_outgoing_msg(msg, to_user_id_name):
 
     # I just sent a msg, that shows my interest, therefore bump my pondness value
     scorecard_map[to_user_id_name].my_pval += 1
-    check_p_balance(scorecard_map[to_user_id_name])
 
 
 def handle_incoming_msg(msg, from_user_id_name):
     log(u'I received a message {} from {}'.format(msg['Text'], get_user_human_name(user_id_name=from_user_id_name)))
     # Some sent me a msg, that shows their interest, therefore bump their pondness value
     scorecard_map[from_user_id_name].opponent_pval += 1
-    check_p_balance(scorecard_map[from_user_id_name])
 
-
-def check_p_balance(scorecard):
-    log(str(scorecard))
-    if scorecard.my_pval < scorecard.opponent_pval - 10:
-        notify_me(u'If you are interested, you might want to display it more openly')
-    elif scorecard.my_pval - 10 > scorecard.opponent_pval:
-        notify_me(u'Hey slow down a little bit, you want to give him/her some time to catch up')
 
 # --------------------------------------------- Helper Functions ---------------------------------------------------
 
@@ -81,12 +85,12 @@ def notify_me(msg):
 
 def pprint_scorecards(score_card_map):
     arr = []
-    for user_id_name, score_card in score_card_map.items():
-        arr.append(u'{}: {}; me: {}'.format(
-            get_user_human_name(user_id_name=user_id_name),
-            score_card.opponent_pval,
-            score_card.my_pval)
-        )
+    for user_id_name, scorecard in score_card_map.items():
+        arr.append(u'me {my_ppct}% VS {oppo_ppct}% {oppo_name}'.format(
+            my_ppct=scorecard.my_ppct,
+            oppo_ppct=scorecard.opponent_ppct,
+            oppo_name=get_user_human_name(user_id_name=user_id_name),
+        ))
     return '\n'.join(arr)
 
 
