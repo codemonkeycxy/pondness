@@ -51,7 +51,7 @@ FILE_HELPER = 'filehelper'
 
 
 def ping_pong_tally(user_name, msg_logs, scorecard_map):
-    """The most naive tally strategy. Each message contributes ONE pondness point to the conversation opponent"""
+    """The most naive tally strategy. Each message contributes ONE pondness point"""
     for row in msg_logs:
         msg = ujson.loads(row[0])
         if is_my_outgoing_msg(msg):
@@ -65,7 +65,6 @@ def ping_pong_tally(user_name, msg_logs, scorecard_map):
 def streak_bonus_tally(user_name, msg_logs, scorecard_map):
     """
     If a conversation participant sends multiple messages in a roll, give a small but cumulative bonus per message
-    to the conversation opponent
     """
     my_streak_factor = 0
     opponent_streak_factor = 0
