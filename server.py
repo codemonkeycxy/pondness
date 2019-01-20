@@ -18,6 +18,9 @@ sys.setdefaultencoding('utf8')
 ###########
 
 # todo: document dependencies with requirement file: ujson, itchat
+# todo: replace raw percentage numbers with a progress bar
+# https://stackoverflow.com/questions/3173320/text-progress-bar-in-the-console
+# https://stackoverflow.com/questions/3160699/python-progress-bar
 
 
 class ScoreCard(object):
@@ -43,6 +46,49 @@ class ScoreCard(object):
 
 
 FILE_HELPER = 'filehelper'
+
+# --------------------------------------------- Point Tally Strategy -------------------------------------------------
+
+
+def ping_pong_tally(user_name, msg_logs, scorecard_map):
+    """The most naive tally strategy. Each message contributes ONE pondness point to the conversation opponent"""
+    for row in msg_logs:
+        msg = ujson.loads(row[0])
+        if is_my_outgoing_msg(msg):
+            # I sent a msg, that shows my interest, therefore bump my pondness value
+            scorecard_map[user_name].my_pval += 1
+        else:  # this is an incoming message from my friend
+            # Some sent me a msg, that shows their interest, therefore bump their pondness value
+            scorecard_map[user_name].opponent_pval += 1
+
+
+def streak_bonus_tally(user_name, msg_logs, scorecard_map):
+    """
+    If a conversation participant sends multiple messages in a roll, give a small but cumulative bonus per message
+    to the conversation opponent
+    """
+    my_streak_factor = 0
+    opponent_streak_factor = 0
+
+    for row in msg_logs:
+        msg = ujson.loads(row[0])
+        if is_my_outgoing_msg(msg):
+            # I sent a msg, that shows my interest, therefore bump my pondness value with applicable streak bonus
+            scorecard_map[user_name].my_pval += 0.1 * my_streak_factor
+            my_streak_factor += 1
+            opponent_streak_factor = 0
+        else:  # this is an incoming message from my friend
+            # Some sent me a msg, that shows their interest,
+            # therefore bump their pondness value with applicable streak bonus
+            scorecard_map[user_name].opponent_pval += 0.1 * opponent_streak_factor
+            opponent_streak_factor += 1
+            my_streak_factor = 0
+
+
+TALLY_STRATEGIES = [
+    ping_pong_tally,
+    streak_bonus_tally,
+]
 
 # --------------------------------------------- Handle Friend Chat ---------------------------------------------------
 
@@ -90,14 +136,9 @@ def collect_scorecards():
 
         with open(abs_file_path, 'rt') as f:
             read = csv.reader(f)
-            for row in read:
-                msg = ujson.loads(row[0])
-                if is_my_outgoing_msg(msg):
-                    # I sent a msg, that shows my interest, therefore bump my pondness value
-                    scorecard_map[user_name].my_pval += 1
-                else:  # this is an incoming message from my friend
-                    # Some sent me a msg, that shows their interest, therefore bump their pondness value
-                    scorecard_map[user_name].opponent_pval += 1
+            rows = [row for row in read]
+            for tally_strategy in TALLY_STRATEGIES:
+                tally_strategy(user_name, rows, scorecard_map)
 
     return scorecard_map
 
