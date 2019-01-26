@@ -26,22 +26,22 @@ sys.setdefaultencoding('utf8')
 class ScoreCard(object):
     def __init__(self):
         self.my_pval = 0
-        self.opponent_pval = 0
+        self.their_pval = 0
 
     @property
     def my_ppct(self):
-        return round(self.my_pval / (self.my_pval + self.opponent_pval) * 100, 2)
+        return round(self.my_pval / (self.my_pval + self.their_pval) * 100, 2)
 
     @property
-    def opponent_ppct(self):
-        return round(self.opponent_pval / (self.my_pval + self.opponent_pval) * 100, 2)
+    def their_ppct(self):
+        return round(self.their_pval / (self.my_pval + self.their_pval) * 100, 2)
 
     def __str__(self):
-        return u'me {my_ppct}({my_pval}) VS {oppo_ppct}({oppo_pval}) opponent'.format(
+        return u'me {my_ppct}({my_pval}) VS {their_ppct}({their_pval}) them'.format(
             my_ppct=self.my_ppct,
             my_pval=self.my_pval,
-            oppo_ppct=self.opponent_ppct,
-            oppo_pval=self.opponent_pval
+            their_ppct=self.their_ppct,
+            their_pval=self.their_pval
         )
 
 
@@ -58,8 +58,8 @@ def ping_pong_tally(user_name, msg_logs, scorecard_map):
             # I sent a msg, that shows my interest, therefore bump my pondness value
             scorecard_map[user_name].my_pval += 1
         else:  # this is an incoming message from my friend
-            # Some sent me a msg, that shows their interest, therefore bump their pondness value
-            scorecard_map[user_name].opponent_pval += 1
+            # Someone sent me a msg, that shows their interest, therefore bump their pondness value
+            scorecard_map[user_name].their_pval += 1
 
 
 def streak_bonus_tally(user_name, msg_logs, scorecard_map):
@@ -67,7 +67,7 @@ def streak_bonus_tally(user_name, msg_logs, scorecard_map):
     If a conversation participant sends multiple messages in a roll, give a small but cumulative bonus per message
     """
     my_streak_factor = 0
-    opponent_streak_factor = 0
+    their_streak_factor = 0
 
     for row in msg_logs:
         msg = ujson.loads(row[0])
@@ -75,12 +75,12 @@ def streak_bonus_tally(user_name, msg_logs, scorecard_map):
             # I sent a msg, that shows my interest, therefore bump my pondness value with applicable streak bonus
             scorecard_map[user_name].my_pval += 0.1 * my_streak_factor
             my_streak_factor += 1
-            opponent_streak_factor = 0
+            their_streak_factor = 0
         else:  # this is an incoming message from my friend
             # Someone sent me a msg, that shows their interest,
             # therefore bump their pondness value with applicable streak bonus
-            scorecard_map[user_name].opponent_pval += 0.1 * opponent_streak_factor
-            opponent_streak_factor += 1
+            scorecard_map[user_name].their_pval += 0.1 * their_streak_factor
+            their_streak_factor += 1
             my_streak_factor = 0
 
 
@@ -110,16 +110,31 @@ def conversation_initiator_tally(user_name, msg_logs, scorecard_map):
         else:
             if (not is_prev_msg_outgoing and msg_ts - prev_msg_ts > 30 * 60) or msg_ts - prev_msg_ts > 24 * 60 * 60:
                 # Someone initiated a conversation, bump their p value
-                scorecard_map[user_name].opponent_pval += 2
+                scorecard_map[user_name].their_pval += 2
 
         prev_msg_ts = msg_ts
         is_prev_msg_outgoing = is_my_outgoing_msg(msg)
+
+
+def voice_message_tally(user_name, msg_logs, scorecard_map):
+    """If someone sends a voice message instead of text, that shows extra interest"""
+    for row in msg_logs:
+        msg = ujson.loads(row[0])
+        if is_my_outgoing_msg(msg):
+            if msg['Type'] == RECORDING:
+                # I sent a voice msg, that shows my interest, therefore bump my pondness value
+                scorecard_map[user_name].my_pval += 1
+        else:  # this is an incoming message from my friend
+            if msg['Type'] == RECORDING:
+                # Someone sent me a voice msg, that shows their interest, therefore bump their pondness value
+                scorecard_map[user_name].their_pval += 1
 
 
 TALLY_STRATEGIES = [
     ping_pong_tally,
     streak_bonus_tally,
     conversation_initiator_tally,
+    voice_message_tally,
 ]
 
 # --------------------------------------------- Handle Friend Chat ---------------------------------------------------
@@ -214,10 +229,10 @@ def notify_me(msg):
 def pprint_scorecards(scorecard_map):
     arr = []
     for user_name, scorecard in scorecard_map.items():
-        arr.append(u'me {my_ppct}% VS {oppo_ppct}% {oppo_name}'.format(
+        arr.append(u'me {my_ppct}% VS {their_ppct}% {their_name}'.format(
             my_ppct=scorecard.my_ppct,
-            oppo_ppct=scorecard.opponent_ppct,
-            oppo_name=user_name,
+            their_ppct=scorecard.their_ppct,
+            their_name=user_name,
         ))
     return '\n'.join(arr)
 
