@@ -91,12 +91,15 @@ TALLY_STRATEGIES = [
 
 # --------------------------------------------- Handle Friend Chat ---------------------------------------------------
 
-# todo: limit to text for now because pic somehow triggers infinite loop in persist function
 
-
-@itchat.msg_register([TEXT], isFriendChat=True)
+@itchat.msg_register([TEXT, PICTURE, FRIENDS, CARD, MAP, SHARING, RECORDING, ATTACHMENT, VIDEO], isFriendChat=True)
 def text_reply(msg):
     """ handle robot switch and friends messages """
+    if msg['Type'] != TEXT:
+        # sanitize the text field so that we can assume it always contains string.
+        # and this is also to avoid infinite loop during serialization in the persist function
+        msg['Text'] = msg['Type']
+
     to_user_id_name = msg['ToUserName']
     from_user_id_name = msg['FromUserName']
 
@@ -212,5 +215,5 @@ def is_my_outgoing_msg(msg):
 
 
 if __name__ == '__main__':
-    itchat.auto_login()
+    itchat.auto_login(enableCmdQR=2)
     itchat.run()
