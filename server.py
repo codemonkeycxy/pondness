@@ -77,16 +77,47 @@ def streak_bonus_tally(user_name, msg_logs, scorecard_map):
             my_streak_factor += 1
             opponent_streak_factor = 0
         else:  # this is an incoming message from my friend
-            # Some sent me a msg, that shows their interest,
+            # Someone sent me a msg, that shows their interest,
             # therefore bump their pondness value with applicable streak bonus
             scorecard_map[user_name].opponent_pval += 0.1 * opponent_streak_factor
             opponent_streak_factor += 1
             my_streak_factor = 0
 
 
+def conversation_initiator_tally(user_name, msg_logs, scorecard_map):
+    """
+    Give a bonus to the conversation initiator because that shows descent interest.
+
+    However, it's hard to differentiate a conversation initiator from a delayed response. So for now we use a simple
+    proxy - if two messages from the same person are >30min apart, assume the second message as a conversation initiator
+    """
+    if not msg_logs:
+        return
+
+    previous_msg_ts = 0
+    is_previous_msg_outgoing = is_my_outgoing_msg(ujson.loads(msg_logs[0][0]))
+
+    for row in msg_logs:
+        msg = ujson.loads(row[0])
+        msg_ts = msg['CreateTime']
+
+        if is_my_outgoing_msg(msg) and is_previous_msg_outgoing and msg_ts - previous_msg_ts > 30 * 60:
+            # I initiated a conversation, bump my p value
+            print(u'I initiated a conversation {}'.format(msg['Text']))
+            scorecard_map[user_name].my_pval += 5
+        elif not is_my_outgoing_msg(msg) and not is_previous_msg_outgoing and msg_ts - previous_msg_ts > 30 * 60:
+            # Someone initiated a conversation, bump their p value
+            print(u'{} initiated a conversation {}'.format(user_name, msg['Text']))
+            scorecard_map[user_name].opponent_pval += 5
+
+        previous_msg_ts = msg_ts
+        is_previous_msg_outgoing = is_my_outgoing_msg(msg)
+
+
 TALLY_STRATEGIES = [
     ping_pong_tally,
     streak_bonus_tally,
+    conversation_initiator_tally,
 ]
 
 # --------------------------------------------- Handle Friend Chat ---------------------------------------------------
