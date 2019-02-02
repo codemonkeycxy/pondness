@@ -4,6 +4,7 @@ from __future__ import print_function, division
 
 import os
 import csv
+import re
 import ujson
 import itchat
 import datetime
@@ -134,8 +135,14 @@ def repeating_char_tally(user_name, msg_logs, scorecard_map):
     """If the message contains >3 repeating characters, that shows fondness"""
     for row in msg_logs:
         msg = ujson.loads(row[0])
-        max_char, cnt = get_max_repeating_char(msg['Text'])
-        if cnt < 3 or max_char in ['.', '。', '-', '_', '+', '=', ',', '`', '*', '|', '\\']:
+        content = msg['Text']
+
+        # emojis are written with multiple characters but we want to treat them as one unit
+        # this line replaces emojis with a special character for easy counting
+        content = re.sub(r'\[[a-zA-Z]+\]', '@', content)
+
+        max_char, cnt = get_max_repeating_char(content)
+        if cnt < 3 or max_char in [' ', '.', '。', '-', '_', '+', '=', ',', '`', '*', '|', '\\']:
             continue
 
         if is_my_outgoing_msg(msg):
