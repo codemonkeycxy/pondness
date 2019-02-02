@@ -188,6 +188,16 @@ def handle_outgoing_msg(msg, to_user_id_name):
     # handle p value inquiries
     if to_user_id_name == FILE_HELPER and 'pondness' in msg['Text'].lower():
         scorecard_map = collect_scorecards()
+
+        if 'all' not in msg['Text'].lower():
+            # default to pick the 10 most frequently talked to users
+            # https://stackoverflow.com/questions/7197315/5-maximum-values-in-a-python-dictionary
+            scorecard_map = dict(sorted(
+                scorecard_map.iteritems(),
+                key=lambda (k, v): v.my_pval + v.their_pval,
+                reverse=True
+            )[:10])
+
         return notify_me(pprint_scorecards(scorecard_map))
 
     persist(msg, user_human_name)
