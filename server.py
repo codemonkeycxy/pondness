@@ -130,11 +130,28 @@ def voice_message_tally(user_name, msg_logs, scorecard_map):
                 scorecard_map[user_name].their_pval += 1
 
 
+def repeating_char_tally(user_name, msg_logs, scorecard_map):
+    """If the message contains >3 repeating characters, that shows fondness"""
+    for row in msg_logs:
+        msg = ujson.loads(row[0])
+        max_char_cnt = get_max_repeating_char_cnt(msg['Text'])
+        if max_char_cnt < 3:
+            continue
+
+        if is_my_outgoing_msg(msg):
+            scorecard_map[user_name].my_pval += 0.1 * max_char_cnt
+        else:  # this is an incoming message from my friend
+            scorecard_map[user_name].their_pval += 0.1 * max_char_cnt
+
+# todo: award messages relied with 1 min
+
+
 TALLY_STRATEGIES = [
     ping_pong_tally,
     streak_bonus_tally,
     conversation_initiator_tally,
     voice_message_tally,
+    repeating_char_tally,
 ]
 
 # --------------------------------------------- Handle Friend Chat ---------------------------------------------------
@@ -205,6 +222,28 @@ def log(msg):
         print(u'{} {}'.format(now(), msg))
     except Exception as e:
         print(str(e))
+
+
+# https://www.geeksforgeeks.org/maximum-consecutive-repeating-character-string/
+def get_max_repeating_char_cnt(string):
+    total_len = len(string)
+    count = 0
+
+    # Find the maximum repeating
+    # character starting from str[i]
+    for i in range(total_len):
+        cur_count = 1
+        for j in range(i + 1, total_len):
+
+            if string[i].lower() != string[j].lower():
+                break
+            cur_count += 1
+
+        # Update result if required
+        if cur_count > count:
+            count = cur_count
+
+    return count
 
 
 def get_log_folder_path():
