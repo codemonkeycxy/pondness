@@ -135,13 +135,13 @@ def repeating_char_tally(user_name, msg_logs, scorecard_map):
     for row in msg_logs:
         msg = ujson.loads(row[0])
         max_char, cnt = get_max_repeating_char(msg['Text'])
-        if cnt < 3 or max_char in ['.', '。']:
+        if cnt < 3 or max_char in ['.', '。', '-', '_', '+', '=', ',', '`', '*', '|', '\\']:
             continue
 
         if is_my_outgoing_msg(msg):
-            scorecard_map[user_name].my_pval += 0.1 * cnt
+            scorecard_map[user_name].my_pval += 0.1 * (cnt - 2)
         else:  # this is an incoming message from my friend
-            scorecard_map[user_name].their_pval += 0.1 * cnt
+            scorecard_map[user_name].their_pval += 0.1 * (cnt - 2)
 
 # todo: award messages relied with 1 min
 
