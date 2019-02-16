@@ -150,7 +150,32 @@ def repeating_char_tally(user_name, msg_logs, scorecard_map):
         else:  # this is an incoming message from my friend
             scorecard_map[user_name].their_pval += 0.1 * (cnt - 2)
 
-# todo: award messages relied with 1 min
+def lightening_reply_tally(user_name, msg_logs, scorecard_map):
+    """
+    Reward reply made within 1 min. The faster the reply is, the more pondness points are rewarded
+    """
+    if not msg_logs:
+        return
+
+    prev_msg_ts = 0
+    is_prev_msg_outgoing = is_my_outgoing_msg(ujson.loads(msg_logs[0][0]))
+
+    for row in msg_logs:
+        msg = ujson.loads(row[0])
+        msg_ts = msg['CreateTime']
+        time_delta = msg_ts - prev_msg_ts
+
+        if is_my_outgoing_msg(msg):
+            if not is_prev_msg_outgoing and time_delta <= 60:
+                # I replied quickly, bump my p value
+                scorecard_map[user_name].my_pval += (60 - time_delta) / 120
+        else:
+            if is_prev_msg_outgoing and time_delta <= 60:
+                # Someone replied quickly, bump their p value
+                scorecard_map[user_name].their_pval += (60 - time_delta) / 120
+
+        prev_msg_ts = msg_ts
+        is_prev_msg_outgoing = is_my_outgoing_msg(msg)
 
 
 TALLY_STRATEGIES = [
@@ -159,6 +184,7 @@ TALLY_STRATEGIES = [
     conversation_initiator_tally,
     voice_message_tally,
     repeating_char_tally,
+    lightening_reply_tally,
 ]
 
 # --------------------------------------------- Handle Friend Chat ---------------------------------------------------
