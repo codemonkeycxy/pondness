@@ -199,11 +199,11 @@ def snail_reply_tally(user_name, msg_logs, scorecard_map):
 
         if is_my_outgoing_msg(msg):
             if not is_prev_msg_outgoing and time_delta >= TEN_MIN:
-                # I replied quickly, bump my p value
+                # I replied slowly, reduce my p value
                 scorecard_map[user_name].my_pval -= min(0.1 * (time_delta / TEN_MIN), 2)
         else:
             if is_prev_msg_outgoing and time_delta >= TEN_MIN:
-                # Someone replied quickly, bump their p value
+                # Someone replied slowly, reduce their p value
                 scorecard_map[user_name].their_pval -= min(0.1 * (time_delta / TEN_MIN), 2)
 
         prev_msg_ts = msg_ts
