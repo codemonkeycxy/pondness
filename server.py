@@ -182,33 +182,6 @@ def lightening_reply_tally(user_name, msg_logs, scorecard_map):
         prev_msg_ts = msg_ts
         is_prev_msg_outgoing = is_my_outgoing_msg(msg)
 
-def snail_reply_tally(user_name, msg_logs, scorecard_map):
-    """
-    Penalize reply made after 10 min. The slower the reply is, the more pondness points are deducted
-    """
-    if not msg_logs:
-        return
-
-    prev_msg_ts = 0
-    is_prev_msg_outgoing = is_my_outgoing_msg(ujson.loads(msg_logs[0][0]))
-
-    for row in msg_logs:
-        msg = ujson.loads(row[0])
-        msg_ts = msg['CreateTime']
-        time_delta = msg_ts - prev_msg_ts
-
-        if is_my_outgoing_msg(msg):
-            if not is_prev_msg_outgoing and time_delta >= TEN_MIN:
-                # I replied slowly, reduce my p value
-                scorecard_map[user_name].my_pval -= min(0.1 * (time_delta / TEN_MIN), 2)
-        else:
-            if is_prev_msg_outgoing and time_delta >= TEN_MIN:
-                # Someone replied slowly, reduce their p value
-                scorecard_map[user_name].their_pval -= min(0.1 * (time_delta / TEN_MIN), 2)
-
-        prev_msg_ts = msg_ts
-        is_prev_msg_outgoing = is_my_outgoing_msg(msg)
-
 
 TALLY_STRATEGIES = [
     ping_pong_tally,
@@ -217,7 +190,6 @@ TALLY_STRATEGIES = [
     voice_message_tally,
     repeating_char_tally,
     lightening_reply_tally,
-    snail_reply_tally,
 ]
 
 # --------------------------------------------- Handle Friend Chat ---------------------------------------------------
