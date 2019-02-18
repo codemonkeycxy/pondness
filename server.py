@@ -48,6 +48,11 @@ class ScoreCard(object):
 
 FILE_HELPER = 'filehelper'
 
+ONE_MIN = 60
+TEN_MIN = 10 * 60
+HALF_HOUR = 30 * 60
+ONE_DAY = 24 * 60 * 60
+
 # --------------------------------------------- Point Tally Strategy -------------------------------------------------
 
 
@@ -105,11 +110,11 @@ def conversation_initiator_tally(user_name, msg_logs, scorecard_map):
         msg_ts = msg['CreateTime']
 
         if is_my_outgoing_msg(msg):
-            if (is_prev_msg_outgoing and msg_ts - prev_msg_ts > 30 * 60) or msg_ts - prev_msg_ts > 24 * 60 * 60:
+            if (is_prev_msg_outgoing and msg_ts - prev_msg_ts > HALF_HOUR) or msg_ts - prev_msg_ts > ONE_DAY:
                 # I initiated a conversation, bump my p value
                 scorecard_map[user_name].my_pval += 2
         else:
-            if (not is_prev_msg_outgoing and msg_ts - prev_msg_ts > 30 * 60) or msg_ts - prev_msg_ts > 24 * 60 * 60:
+            if (not is_prev_msg_outgoing and msg_ts - prev_msg_ts > HALF_HOUR) or msg_ts - prev_msg_ts > ONE_DAY:
                 # Someone initiated a conversation, bump their p value
                 scorecard_map[user_name].their_pval += 2
 
@@ -166,13 +171,40 @@ def lightening_reply_tally(user_name, msg_logs, scorecard_map):
         time_delta = msg_ts - prev_msg_ts
 
         if is_my_outgoing_msg(msg):
-            if not is_prev_msg_outgoing and time_delta <= 60:
+            if not is_prev_msg_outgoing and time_delta <= ONE_MIN:
                 # I replied quickly, bump my p value
                 scorecard_map[user_name].my_pval += (60 - time_delta) / 120
         else:
-            if is_prev_msg_outgoing and time_delta <= 60:
+            if is_prev_msg_outgoing and time_delta <= ONE_MIN:
                 # Someone replied quickly, bump their p value
                 scorecard_map[user_name].their_pval += (60 - time_delta) / 120
+
+        prev_msg_ts = msg_ts
+        is_prev_msg_outgoing = is_my_outgoing_msg(msg)
+
+def snail_reply_tally(user_name, msg_logs, scorecard_map):
+    """
+    Penalize reply made after 10 min. The slower the reply is, the more pondness points are deducted
+    """
+    if not msg_logs:
+        return
+
+    prev_msg_ts = 0
+    is_prev_msg_outgoing = is_my_outgoing_msg(ujson.loads(msg_logs[0][0]))
+
+    for row in msg_logs:
+        msg = ujson.loads(row[0])
+        msg_ts = msg['CreateTime']
+        time_delta = msg_ts - prev_msg_ts
+
+        if is_my_outgoing_msg(msg):
+            if not is_prev_msg_outgoing and time_delta >= TEN_MIN:
+                # I replied quickly, bump my p value
+                scorecard_map[user_name].my_pval -= min(0.1 * (time_delta / TEN_MIN), 2)
+        else:
+            if is_prev_msg_outgoing and time_delta >= TEN_MIN:
+                # Someone replied quickly, bump their p value
+                scorecard_map[user_name].their_pval -= min(0.1 * (time_delta / TEN_MIN), 2)
 
         prev_msg_ts = msg_ts
         is_prev_msg_outgoing = is_my_outgoing_msg(msg)
@@ -185,6 +217,7 @@ TALLY_STRATEGIES = [
     voice_message_tally,
     repeating_char_tally,
     lightening_reply_tally,
+    snail_reply_tally,
 ]
 
 # --------------------------------------------- Handle Friend Chat ---------------------------------------------------
